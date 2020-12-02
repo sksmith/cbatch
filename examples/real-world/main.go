@@ -1,29 +1,46 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
 	"time"
+
+	cb "github.com/sksmith/cbatch"
 )
 
 func main() {
-	// Get the data you would like to process
-	orders := [][]interface{}{
-		{"one"}, {"two"}, {"three"}, {"four"}, {"five"}, {"six"},
+	data := make([]interface{}, 0)
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		data = append(data, scanner.Text())
 	}
 
-	// Or uncomment this version if you would like some bells and whistles
-	//
-	// cb.Process(
-	// 	handle,                     // your handler function
-	// 	orders,                     // the data you would like to process
-	// 	cb.Concurrency(2),          // how many records would you like to process simultaneously
-	// 	cb.Title("Testing Report"), // title of the output report
-	// 	cb.Report(os.Stdout),       // where would you like the report to write?
-	// 	cb.Progress)                // prints progress to Stderr
+	results := cb.Process(
+		handle,                     // your handler function
+		data,                       // the data you would like to process
+		cb.Concurrency(20),         // how many records would you like to process simultaneously
+		cb.Title("Testing Report"), // title of the output report
+		cb.Progress)                // print progress to Stderr
+
+	results.Print(os.Stdout)
 }
 
-// Define how you would like each row handled
+// Define how you would like each row handled. Bare in mind that
+// multiple handlers will be running simultaneously if you're using
+// concurrency. So beware of sharing data between goroutines!
 func handle(r interface{}) error {
-	time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+	// let's sleep a bit while processing records to simulate latency
+	time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+
+	// not all of the records in the "numbers" file are numbers
+	_, err := strconv.Atoi(r.(string))
+	if err != nil {
+		fmt.Printf("something interesting while processing value=[%v]\n", r)
+		// errors end up in the results at the end of the process
+		return err
+	}
 	return nil
 }

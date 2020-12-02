@@ -1,0 +1,38 @@
+something interesting while processing value=[1bad1670]
+something interesting while processing value=[85bad281]
+something interesting while processing value=[97bad84]
+something interesting while processing value=[86bad491]
+something interesting while processing value=[68bad56]
+something interesting while processing value=[16bad235]
+something interesting while processing value=[76bad999]
+something interesting while processing value=[21bad731]
+something interesting while processing value=[23bad259]
+something interesting while processing value=[35bad56]
+  --------------
+  Testing Report
+  --------------
+    Executed: 2020-12-01 21:01:25.7728252 -0500 EST m=+0.000127201
+ Concurrency: 20
+
+  --------
+   Errors
+  --------
+strconv.Atoi: parsing "1bad1670": invalid syntax
+strconv.Atoi: parsing "85bad281": invalid syntax
+strconv.Atoi: parsing "97bad84": invalid syntax
+strconv.Atoi: parsing "86bad491": invalid syntax
+strconv.Atoi: parsing "68bad56": invalid syntax
+strconv.Atoi: parsing "16bad235": invalid syntax
+strconv.Atoi: parsing "76bad999": invalid syntax
+strconv.Atoi: parsing "21bad731": invalid syntax
+strconv.Atoi: parsing "23bad259": invalid syntax
+strconv.Atoi: parsing "35bad56": invalid syntax
+
+  --------
+  Results
+  --------
+  Finished: 2020-12-01 21:01:28.251408 -0500 EST m=+2.478710101
+ Processed: 1000
+    Failed: 10
+   Elapsed: 2478ms
+   Average: 2ms
