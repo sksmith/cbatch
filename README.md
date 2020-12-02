@@ -24,40 +24,50 @@ go run . > results.log
 package main
 
 import (
-  "math/rand"
-  "time"
+	"fmt"
+	"math/rand"
+	"os"
+	"time"
 
-  cb "github.com/sksmith/cbatch"
+	cb "github.com/sksmith/cbatch"
 )
 
 func main() {
-  // Get the data you would like to process
-  orders := [][]interface{}{
-    {"one"}, {"two"}, {"three"}, {"four"}, {"five"}, {"six"},
-  }
+	// Get the data you would like to process
+	data := []interface{}{
+		"one", "two", "three", "four", "five", "six",
+	}
 
-  // Execute handler with the bare minimum
-  cb.Process(handle, orders)
+	// Execute handler with the bare minimum
+	cb.Process(handle, data)
 
-  // Speed things up with some concurrency
-  cb.Process(handle, orders, cb.Concurrency(2))
+	// Or speed things up with some concurrency
+	results := cb.Process(handle, data, cb.Concurrency(2))
+	if len(results.Errors) > 0 {
+		// how would you like to handle the errors?
+	}
 
-  // Or uncomment this version if you would like some bells and whistles
-  //
-  // cb.Process(
-  //  handle,                     // your handler function
-  //  orders,                     // the data you would like to process
-  //  cb.Concurrency(2),          // how many records would you like to process simultaneously
-  //  cb.Title("Testing Report"), // title of the output report
-  //  cb.Report(os.Stdout),       // where would you like the report to write?
-  //  cb.Progress)                // prints progress to Stderr
+	// Or if you would like some bells and whistles
+	results = cb.Process(
+		handle,                     // your handler function
+		data,                       // the data you would like to process
+		cb.Concurrency(2),          // how many records would you like to process simultaneously
+		cb.Title("Some Batch Job"), // title of the output report
+		cb.Progress)                // prints a progress bar to stderr
+
+  // Send a nicely formatted printout to your favorite output stream!
+	results.Print(os.Stdout)
 }
 
 // Define how you would like each row handled
 func handle(s interface{}) error {
-  time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
-  return nil
+	time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+	if s.(string) == "two" {
+		return fmt.Errorf("failed to process %s", s)
+	}
+	return nil
 }
+
 ```
 
 ### A More "Real World" Example

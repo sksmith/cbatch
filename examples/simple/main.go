@@ -19,16 +19,20 @@ func main() {
 	cb.Process(handle, data)
 
 	// Or speed things up with some concurrency
-	cb.Process(handle, data, cb.Concurrency(2))
+	results := cb.Process(handle, data, cb.Concurrency(2))
+	if len(results.Errors) > 0 {
+		// how would you like to handle the errors?
+	}
 
 	// Or if you would like some bells and whistles
-	cb.Process(
+	results = cb.Process(
 		handle,                     // your handler function
 		data,                       // the data you would like to process
 		cb.Concurrency(2),          // how many records would you like to process simultaneously
-		cb.Title("Testing Report"), // title of the output report
-		cb.Report(os.Stdout),       // where would you like the report to write?
+		cb.Title("Some Batch Job"), // title of the output report
 		cb.Progress)                // prints a progress bar to stderr
+
+	results.Print(os.Stdout)
 }
 
 // Define how you would like each row handled

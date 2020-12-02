@@ -41,29 +41,32 @@ func Concurrency(c int) func(o *runOptions) {
 	return func(o *runOptions) { o.concurrency = c }
 }
 
-// Report prints simple ASCII report to the requested stream.
-func Report(w io.Writer) func(o *runOptions) {
-	return func(o *runOptions) {
-		o.report = true
-		o.reportWriter = w
-	}
-}
-
 // Progress sends the progress of the process to `os.Stderr`
 func Progress(o *runOptions) {
 	o.progress = true
 }
 
+type Results struct {
+	Title       string
+	StartedAt   time.Time
+	FinishedAt  time.Time
+	Concurrency int
+	Headers     map[string]string
+	Errors      []error
+	RecordCount int
+}
+
 // Process takes a set of data and calls the exec function once for each entry
 // in the parent array. Passing the child arrays as input. A few options can
 // be provided for modifying concurrency, or outputting the results.
-func Process(exec func(interface{}) error, data []interface{}, options ...Option) {
-	start := time.Now()
+func Process(exec func(interface{}) error, data []interface{}, options ...Option) Results {
+	results := Results{}
+	results.StartedAt = time.Now()
 
 	o := runOptions{
 		title: "",
 		headers: map[string]string{
-			"Executed": start.String(),
+			"Executed": results.StartedAt.String(),
 		},
 		concurrency: 1,
 	}
@@ -71,33 +74,32 @@ func Process(exec func(interface{}) error, data []interface{}, options ...Option
 		option(&o)
 	}
 	o.headers["Concurrency"] = strconv.Itoa(o.concurrency)
-	printHeaders(o)
-	print(o, "\n")
 
-	failures := make([]error, 0)
+	results.Title = o.title
+	results.Concurrency = o.concurrency
+	results.Headers = o.headers
+	results.Errors = make([]error, 0)
 
 	sem := make(chan bool, o.concurrency)
 	success := make(chan bool)
 	fail := make(chan error)
 	quit := make(chan bool)
 
-	recordCount := len(data)
-
-	printLogHeader(o)
+	results.RecordCount = len(data)
 
 	go func() {
 		done := 0
 
 		var bar progressBar
 		if o.progress {
-			bar.New(0, int64(recordCount))
+			bar.New(0, int64(results.RecordCount))
 		}
 
 		finished := false
 		for !finished {
 			select {
 			case f := <-fail:
-				failures = append(failures, f)
+				results.Errors = append(results.Errors, f)
 				done++
 			case <-success:
 				done++
@@ -133,28 +135,31 @@ func Process(exec func(interface{}) error, data []interface{}, options ...Option
 
 	quit <- true
 
-	print(o, "\n")
+	results.FinishedAt = time.Now()
 
-	if len(failures) > 0 {
-		printFailures(o, failures)
-		print(o, "\n")
-	}
-
-	printFooter(o, recordCount, failures, start)
+	return results
 }
 
-func printHeaders(o runOptions) {
-	maxLen := maxLabel(o.headers)
+func (r *Results) Print(w io.Writer) {
+	r.printHeaders(w)
+	fmt.Fprintln(w)
+	r.printErrors(w)
+	fmt.Fprintln(w)
+	r.printFooter(w)
+}
 
-	if o.title != "" {
-		bars := strings.Repeat("-", len(o.title)) + "\n"
-		print(o, "  "+bars)
-		print(o, "  %s\n", o.title)
-		print(o, "  "+bars)
+func (r *Results) printHeaders(w io.Writer) {
+	maxLen := maxLabel(r.Headers)
+
+	if r.Title != "" {
+		bars := strings.Repeat("-", len(r.Title)) + "\n"
+		print(w, "  "+bars)
+		print(w, "  %s\n", r.Title)
+		print(w, "  "+bars)
 	}
 
-	for k, v := range o.headers {
-		print(o, " %*s: %s\n", maxLen, k, v)
+	for k, v := range r.Headers {
+		print(w, " %*s: %s\n", maxLen, k, v)
 	}
 }
 
@@ -168,33 +173,29 @@ func maxLabel(labels map[string]string) int {
 	return maxLen
 }
 
-func print(o runOptions, msg string, a ...interface{}) {
-	if o.report {
-		fmt.Fprintf(o.reportWriter, msg, a...)
+func print(w io.Writer, msg string, a ...interface{}) {
+	fmt.Fprintf(w, msg, a...)
+}
+
+func (r *Results) printErrors(w io.Writer) {
+	print(w, "  --------\n")
+	print(w, "   Errors\n")
+	print(w, "  --------\n")
+	for _, err := range r.Errors {
+		print(w, err.Error()+"\n")
 	}
 }
 
-func printLogHeader(o runOptions) {
-	print(o, "  --------\n")
-	print(o, "    Logs\n")
-	print(o, "  --------\n")
-}
+func (r *Results) printFooter(w io.Writer) {
+	elapsed := r.FinishedAt.Sub(r.StartedAt).Milliseconds()
+	average := elapsed / int64(r.RecordCount)
 
-func printFailures(o runOptions, failures []error) {
-	print(o, "  --------\n")
-	print(o, "  Failures\n")
-	print(o, "  --------\n")
-	for _, failure := range failures {
-		print(o, failure.Error()+"\n")
-	}
-}
-
-func printFooter(o runOptions, recordCount int, failures []error, start time.Time) {
-	print(o, "  --------\n")
-	print(o, "  Results\n")
-	print(o, "  --------\n")
-	print(o, "  Finished: %v\n", time.Now())
-	print(o, " Processed: %d\n", recordCount)
-	print(o, "    Failed: %d\n", len(failures))
-	print(o, "   Elapsed: %ds\n", time.Since(start)/time.Second)
+	print(w, "  --------\n")
+	print(w, "  Results\n")
+	print(w, "  --------\n")
+	print(w, "  Finished: %v\n", r.FinishedAt)
+	print(w, " Processed: %d\n", r.RecordCount)
+	print(w, "    Failed: %d\n", len(r.Errors))
+	print(w, "   Elapsed: %dms\n", elapsed)
+	print(w, "   Average: %dms\n", average)
 }
