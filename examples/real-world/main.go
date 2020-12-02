@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"math/rand"
 	"os"
@@ -12,15 +11,9 @@ import (
 )
 
 func main() {
-	data := make([]interface{}, 0)
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		data = append(data, scanner.Text())
-	}
-
 	results := cb.Process(
 		handle,                     // your handler function
-		data,                       // the data you would like to process
+		os.Stdin,                   // the data you would like to process
 		cb.Concurrency(20),         // how many records would you like to process simultaneously
 		cb.Title("Testing Report"), // title of the output report
 		cb.Progress)                // print progress to Stderr

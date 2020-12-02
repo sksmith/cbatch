@@ -3,8 +3,10 @@
 package cbatch
 
 import (
+	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -59,7 +61,7 @@ type Results struct {
 // Process takes a set of data and calls the exec function once for each entry
 // in the parent array. Passing the child arrays as input. A few options can
 // be provided for modifying concurrency, or outputting the results.
-func Process(exec func(interface{}) error, data []interface{}, options ...Option) Results {
+func Process(exec func(interface{}) error, r io.Reader, options ...Option) Results {
 	results := Results{}
 	results.StartedAt = time.Now()
 
@@ -85,39 +87,30 @@ func Process(exec func(interface{}) error, data []interface{}, options ...Option
 	fail := make(chan error)
 	quit := make(chan bool)
 
-	results.RecordCount = len(data)
-
 	go func() {
-		done := 0
-
-		var bar progressBar
-		if o.progress {
-			bar.New(0, int64(results.RecordCount))
-		}
-
 		finished := false
 		for !finished {
 			select {
 			case f := <-fail:
 				results.Errors = append(results.Errors, f)
-				done++
+				results.RecordCount++
 			case <-success:
-				done++
+				results.RecordCount++
 			case <-quit:
 				finished = true
 			}
 
 			if o.progress {
-				bar.Play(int64(done))
-				if finished {
-					bar.Finish()
-				}
+				fmt.Fprintf(os.Stderr, "\rProcessed=[%d] Errors=[%d]", results.RecordCount, len(results.Errors))
 			}
 		}
+		fmt.Fprintln(os.Stderr)
 	}()
 
-	for _, record := range data {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
 		sem <- true
+		record := scanner.Text()
 		go func(r interface{}) {
 			defer func() { <-sem }()
 			err := exec(r)
