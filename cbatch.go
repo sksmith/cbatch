@@ -19,6 +19,7 @@ type runOptions struct {
 	report       bool
 	reportWriter io.Writer
 	progress     bool
+	splitFunc    bufio.SplitFunc
 }
 
 // Option represents a given option for execution.
@@ -43,11 +44,18 @@ func Concurrency(c int) func(o *runOptions) {
 	return func(o *runOptions) { o.concurrency = c }
 }
 
-// Progress sends the progress of the process to `os.Stderr`
+// Progress sends the progress of the process to `os.Stderr`.
 func Progress(o *runOptions) {
 	o.progress = true
 }
 
+// Split tells cbatch how to break up the incoming data between concurrent
+// processes. By default uses `bufio.ScanLines`.
+func Split(f bufio.SplitFunc) func(o *runOptions) {
+	return func(o *runOptions) { o.splitFunc = f }
+}
+
+// Results contains the finished output of a given Process call.
 type Results struct {
 	Title       string
 	StartedAt   time.Time
@@ -55,13 +63,13 @@ type Results struct {
 	Concurrency int
 	Headers     map[string]string
 	Errors      []error
-	RecordCount int
+	RecordCount int64
 }
 
 // Process takes a set of data and calls the exec function once for each entry
 // in the parent array. Passing the child arrays as input. A few options can
 // be provided for modifying concurrency, or outputting the results.
-func Process(exec func(interface{}) error, r io.Reader, options ...Option) Results {
+func Process(exec func([]byte) error, r io.Reader, options ...Option) Results {
 	results := Results{}
 	results.StartedAt = time.Now()
 
@@ -71,6 +79,7 @@ func Process(exec func(interface{}) error, r io.Reader, options ...Option) Resul
 			"Executed": results.StartedAt.String(),
 		},
 		concurrency: 1,
+		splitFunc:   bufio.ScanLines,
 	}
 	for _, option := range options {
 		option(&o)
@@ -108,10 +117,12 @@ func Process(exec func(interface{}) error, r io.Reader, options ...Option) Resul
 	}()
 
 	scanner := bufio.NewScanner(r)
+	scanner.Split(o.splitFunc)
+
 	for scanner.Scan() {
 		sem <- true
-		record := scanner.Text()
-		go func(r interface{}) {
+		record := scanner.Bytes()
+		go func(r []byte) {
 			defer func() { <-sem }()
 			err := exec(r)
 			if err != nil {
@@ -181,7 +192,10 @@ func (r *Results) printErrors(w io.Writer) {
 
 func (r *Results) printFooter(w io.Writer) {
 	elapsed := r.FinishedAt.Sub(r.StartedAt).Milliseconds()
-	average := elapsed / int64(r.RecordCount)
+	average := int64(0)
+	if r.RecordCount > 0 {
+		average = elapsed / r.RecordCount
+	}
 
 	print(w, "  --------\n")
 	print(w, "  Results\n")
