@@ -1,17 +1,17 @@
-something interesting while processing value=[1bad1670]
-something interesting while processing value=[85bad281]
-something interesting while processing value=[97bad84]
-something interesting while processing value=[86bad491]
-something interesting while processing value=[68bad56]
-something interesting while processing value=[16bad235]
-something interesting while processing value=[76bad999]
-something interesting while processing value=[21bad731]
-something interesting while processing value=[23bad259]
-something interesting while processing value=[35bad56]
+something interesting while processing value=[[49 98 97 100 49 54 55 48]]
+something interesting while processing value=[[56 53 98 97 100 50 56 49]]
+something interesting while processing value=[[57 55 98 97 100 56 52]]
+something interesting while processing value=[[56 54 98 97 100 52 57 49]]
+something interesting while processing value=[[54 56 98 97 100 53 54]]
+something interesting while processing value=[[49 54 98 97 100 50 51 53]]
+something interesting while processing value=[[55 54 98 97 100 57 57 57]]
+something interesting while processing value=[[50 49 98 97 100 55 51 49]]
+something interesting while processing value=[[50 51 98 97 100 50 53 57]]
+something interesting while processing value=[[51 53 98 97 100 53 54]]
   --------------
   Testing Report
   --------------
-    Executed: 2020-12-01 21:01:25.7728252 -0500 EST m=+0.000127201
+    Executed: 2020-12-02 06:54:05.662534 -0500 EST m=+0.000056901
  Concurrency: 20
 
   --------
@@ -31,7 +31,7 @@ strconv.Atoi: parsing "35bad56": invalid syntax
   --------
   Results
   --------
-  Finished: 2020-12-01 21:01:28.251408 -0500 EST m=+2.478710101
+  Finished: 2020-12-02 06:54:08.1411902 -0500 EST m=+2.478713201
  Processed: 1000
     Failed: 10
    Elapsed: 2478ms
