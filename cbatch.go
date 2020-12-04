@@ -4,6 +4,7 @@ package cbatch
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -144,6 +145,7 @@ func Process(exec func([]byte) error, r io.Reader, options ...Option) Results {
 	return results
 }
 
+// Print prints the values of Results in a reader friendly ascii format.
 func (r *Results) Print(w io.Writer) {
 	r.printHeaders(w)
 	fmt.Fprintln(w)
@@ -205,4 +207,42 @@ func (r *Results) printFooter(w io.Writer) {
 	print(w, "    Failed: %d\n", len(r.Errors))
 	print(w, "   Elapsed: %dms\n", elapsed)
 	print(w, "   Average: %dms\n", average)
+}
+
+// ScanMultiLines returns a function that implements bufio.SplitFunc to allow processing of multiple
+// lines at a time.
+func ScanMultiLines(lineCount int) func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	return func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		cur := 0
+		if i := bytes.IndexFunc(data, func(r rune) bool {
+			if r == '\n' {
+				cur++
+			}
+			if cur == lineCount {
+				return true
+			}
+			return false
+		}); i > 0 {
+			return i + 1, dropCR(data[0:i]), nil
+		}
+
+		// If we're at EOF, we have a final, non-terminated line. Return it.
+		if atEOF {
+			return len(data), dropCR(data), nil
+		}
+
+		// Request more data.
+		return 0, nil, nil
+	}
+}
+
+// dropCR drops a terminal \r from the data.
+func dropCR(data []byte) []byte {
+	if len(data) > 0 && data[len(data)-1] == '\r' {
+		return data[0 : len(data)-1]
+	}
+	return data
 }
